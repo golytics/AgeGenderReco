@@ -69,7 +69,7 @@ with row1_3:
     st.info(
         """
         ##
-        This data product has been prepared as a proof of concept of a machine learning model to predict the age and the gender of 
+        This data product has been prepared as a proof of concept of an artificial intelligence (AI) model to predict the age and the gender of 
         person/ persons in any photo.
                 """)
 
