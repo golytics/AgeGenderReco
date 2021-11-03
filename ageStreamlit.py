@@ -1,6 +1,7 @@
 # SOURCES:
 # https://learnopencv.com/age-gender-classification-using-opencv-deep-learning-c-python/, model loading and usage code taken from there
 # https://discuss.streamlit.io/t/remove-made-with-streamlit-from-bottom-of-app/1370/2,
+# Age and gender prediction website using OpenCV and Streamlit: https://youtu.be/W9GNuO8iy3Q
 # Hiding the hamburger menu and watermark
 
 import time
@@ -10,13 +11,67 @@ import numpy as np
 import streamlit as st
 from PIL import Image
 
-hide_streamlit_style = """
-            <style>
-            # MainMenu {visibility: hidden;}
-            footer {visibility: hidden;}
-            </style>
-            """
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+# hide_streamlit_style = """
+#             <style>
+#             # MainMenu {visibility: hidden;}
+#             footer {visibility: hidden;}
+#             </style>
+#             """
+# st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
+#source: https://pypi.org/project/streamlit-analytics/
+import streamlit_analytics
+
+# We use streamlit_analytics to track the site like in Google Analytics
+streamlit_analytics.start_tracking()
+
+# configuring the page and the logo
+st.set_page_config(page_title='Mohamed Gabr - House Price Prediction', page_icon ='logo.png', layout = 'wide', initial_sidebar_state = 'auto')
+
+
+import os
+import base64
+
+# the functions to prepare the image to be a hyperlink
+@st.cache(allow_output_mutation=True)
+def get_base64_of_bin_file(bin_file):
+    with open(bin_file, 'rb') as f:
+        data = f.read()
+    return base64.b64encode(data).decode()
+
+@st.cache(allow_output_mutation=True)
+def get_img_with_href(local_img_path, target_url):
+    img_format = os.path.splitext(local_img_path)[-1].replace('.', '')
+    bin_str = get_base64_of_bin_file(local_img_path)
+    html_code = f'''
+        <a href="{target_url}">
+            <img src="data:image/{img_format};base64,{bin_str}" />
+        </a>'''
+    return html_code
+
+
+# preparing the layout for the top section of the app
+# dividing the layout vertically (dividing the first row)
+row1_1, row1_2, row1_3 = st.columns((1, 6, 3))
+
+# first row first column
+with row1_1:
+    gif_html = get_img_with_href('logo.png', 'https://golytics.github.io/')
+    st.markdown(gif_html, unsafe_allow_html=True)
+
+with row1_2:
+    # st.image('logo.png')
+    st.title("Predicting Age and Gender from Photos")
+    st.markdown("<h2>A POC for a Security Client</h2>", unsafe_allow_html=True)
+
+# first row second column
+with row1_3:
+    st.info(
+        """
+        ##
+        This data product has been prepared as a proof of concept of a machine learning model to predict the age and the gender of 
+        person/ persons in any photo.
+                """)
 
 
 def get_face_box(net, frame, conf_threshold=0.7):
@@ -42,17 +97,27 @@ def get_face_box(net, frame, conf_threshold=0.7):
     return opencv_dnn_frame, b_boxes_detect
 
 
-st.write("""
-    # Age and Gender prediction
-    """)
+st.subheader('How to use the model?')
+''' 
+You can use the model by following the below steps:
 
-st.write("## Upload a picture that contains a face")
+1- You can upload the photo of the person that you want to predict his age and gender
+
+2- The model will predict the gender and the age range of the person in the uploaded photo
+
+3- You will see the **'prediction results (age and gender)'** in the results section and on the photo
+
+Limitations: The model is in the demo phase but the results can be enhanced via training the model using more data. 
+'''
+
+
+st.write("## Please upload a photo that contains a face/ faces")
 
 uploaded_file = st.file_uploader("Choose a file:")
 if uploaded_file is not None:
     image = Image.open(uploaded_file)
     cap = np.array(image)
-    cv2.imwrite('temp.jpg', cv2.cvtColor(cap, cv2.COLOR_BGR2GRAY)))
+    cv2.imwrite('temp.jpg', cv2.cvtColor(cap, cv2.COLOR_BGR2GRAY))
     cap=cv2.imread('temp.jpg')
 
     face_txt_path="opencv_face_detector.pbtxt"
@@ -93,13 +158,33 @@ if uploaded_file is not None:
         gender_net.setInput(blob)
         gender_pred_list = gender_net.forward()
         gender = gender_classes[gender_pred_list[0].argmax()]
-        st.write(
-            f"Gender : {gender}, confidence = {gender_pred_list[0].max() * 100}%")
+        st.write("### Results")
+        if len(b_boxes)>1:
+            html_str_face_count = f"""
+                    <h5 style="color:red;">There are {len(b_boxes)} persons in the photo</h5>
+                    """
+        else:
+            html_str_face_count = f"""
+                    <h5 style="color:red;">There is {len(b_boxes)} person in the photo</h5>
+                    """
+        st.markdown(html_str_face_count, unsafe_allow_html=True)
+
+        html_str_gender = f"""
+        <h5 style="color:lightgreen;">Gender : {gender}, confidence = {round(gender_pred_list[0].max() * 100)}%</h5>
+        """
+        st.markdown(html_str_gender, unsafe_allow_html=True)
+        # st.write(
+        #     f"Gender : {gender}, confidence = {gender_pred_list[0].max() * 100}%")
 
         age_net.setInput(blob)
         age_pred_list = age_net.forward()
         age = age_classes[age_pred_list[0].argmax()]
-        st.write(f"Age : {age}, confidence = {age_pred_list[0].max() * 100}%")
+
+        html_str_age = f"""
+        <h5 style="color:lightgreen;">Age : {age}, confidence = {round(age_pred_list[0].max() * 100)}%</h5>
+        """
+        st.markdown(html_str_age, unsafe_allow_html=True)
+        # st.write(f"Age : {age}, confidence = {age_pred_list[0].max() * 100}%")
 
         label = "{},{}".format(gender, age)
         cv2.putText(
@@ -115,3 +200,10 @@ if uploaded_file is not None:
             2,
             cv2.LINE_AA)
         st.image(frameFace)
+
+
+st.info("The application can be integrated with any solution that requires determining the age and the gender of a person")
+with open("style.css") as f:
+    st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+
+streamlit_analytics.stop_tracking(unsafe_password="forward1")
